@@ -1,3 +1,3 @@
 # Data_Visulization_Practice
-Practice with D3 to do data visulization
+Practice with D3 to do data visulization;\n
 Some practice are based on coursework(GT CSE 6242)
