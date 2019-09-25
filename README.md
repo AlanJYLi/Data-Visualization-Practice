@@ -1,3 +1,3 @@
 # Data_Visulization_Practice
   Practice with D3 to do data visulization.<br>
-  Some practice are based on coursework(GT CSE 6242).
+  File names with the same beginning number are corresponding to each other(e.g code, raw data).
