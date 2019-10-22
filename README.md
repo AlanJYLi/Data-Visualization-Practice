@@ -1,3 +1,6 @@
-# Data_Visulization_Practice
-  Practice with D3 to do data visulization.<br>
-  File names with the same beginning number are corresponding to each other(e.g code, raw data).
+# Data_Visualization_Practice  
+Practice with D3 to do data visulization.  
+    
+Preview the visualization plot via the link below:  
+  
+https://alanjyli.github.io/Data-Visualization-Practice/heatmap_earthquake.html
