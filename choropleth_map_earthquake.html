@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://alanjyli.github.io/Data-Visualization-Practice/resource/topojson.v2.min.js"></script>
+<script src="https://alanjyli.github.io/Data-Visualization-Practice/resource/d3-tip.min.js"></script>
+<style>
+
+text {
+    fill: #000;
+    font: 12px sans-serif;
+    pointer-events: none;
+}
+
+.state-borders {
+    fill: none;
+    stroke: black;
+    stroke-width: 1px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+
+.d3-tip {
+    line-height: 1;
+    font-weight: bold;
+    font: 12px sans-serif;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    border-radius: 2px;
+}
+
+
+</style>
+<body>
+<script>
+var margin = {top: 150, right: 200, bottom: 150, left: 100};
+var w = 1000 - margin.left - margin.right; 
+var h = 600 - margin.top - margin.bottom;
+
+var svg=d3.select('body')
+    .append('svg')
+    .attr('width', w + margin.left + margin.right)
+    .attr('height', h + margin.top + margin.bottom);
+
+svg.append('text')
+    .text('US Earthquakes Frequency by States (2010-2015 in total)')
+    .attr('text-anchor','middle')
+        .attr('x', w / 2 + margin.left)
+        .attr('y', margin.top / 3)
+        .style('font', '20px sans-serif')
+        .style('font-weight', 'bold');
+
+var promises = [
+    d3.json("https://alanjyli.github.io/Data-Visualization-Practice/resource/map-states-10m.json"),
+    d3.dsv(",", "https://alanjyli.github.io/Data-Visualization-Practice/resource/choropleth_map_earthquake.csv", function(d) {
+        var num = parseInt(d['Total Earthquakes']);
+        var totallog;
+        num == 0 ? totallog = 0: totallog = Math.log(num);
+    return {'state': d.States, 'region': d.Region, 'total': parseInt(d['Total Earthquakes']), 'totallog': totallog};})
+];
+
+
+Promise.all(promises).then(function(data) {
+    // built 9-gradation color gradient
+    var colorList = ['#fff5f0','#fee0d2','#fcbba1','#fc9272','#fb6a4a','#ef3b2c','#cb181d','#a50f15','#67000d'];
+    var maxnum = d3.max(data[1], function(d) {return d.totallog;});
+    var minnum = d3.min(data[1], function(d) {return d.totallog;});
+    var colorScale = d3.scaleQuantile()
+        .domain([minnum, maxnum])
+        .range(colorList);
+
+    /*Draw legend:
+      with 9-gradation color gradient, the legend mark is 10,
+      including the begenning mark and ending mark.
+    */
+    var legendPositionX = margin.left + w + 10;
+    var legendPositionY = margin.top +50;
+    var legendSize = 20;
+    var legendSpace = 3;
+
+    svg.append('text')
+        .text('Earthquake Frequency')
+        .attr('x', legendPositionX - 50)
+        .attr('y', legendPositionY - 30)
+        .style('font-weight', 'bold');
+
+    var colorScaleBreakPoint = [];
+            
+    for (var i=0; i<colorScale.quantiles().length; i++) {
+        colorScaleBreakPoint.push(Math.exp(colorScale.quantiles()[i]));
+    };
+
+
+    colorScaleBreakPoint.unshift(0); // add the starting label mark to the legend
+    colorScaleBreakPoint.push(Math.exp(maxnum)); // add the ending label mark to the legend
+           
+    // add 'none' color to the color list, to make the number of marks and number of colors match
+    var colorListLegend = [];
+    for (var i=0; i<colorList.length; i++) {
+        colorListLegend.push(colorList[i]);
+    };
+
+    colorListLegend.push('none');
+
+    var legend=svg.append('g'); 
+
+    for (var i=0; i<colorScaleBreakPoint.length; i++) {
+        var xPosition = legendPositionX;
+        var yPosition = legendPositionY + i * (legendSize + legendSpace);
+
+        legend.append('rect')
+            .attr('transform', 'translate('+xPosition+','+yPosition+')')
+            .attr('width', legendSize)
+            .attr('height', legendSize)
+            .style('fill', colorListLegend[i])
+            .style('stroke', colorListLegend[i]);
+
+        legend.append('text')
+            .attr('transform', 'translate('+xPosition+','+yPosition+')')
+            .attr('x', legendSize + 5)
+            .attr('y', 2)
+            .text(Math.round(colorScaleBreakPoint[i]))
+            .style('font', '12px sans-serif')
+            .attr('text-anchor','start');
+    };
+
+    // draw map and tooltip
+    // Map and projection
+    var projection = d3.geoAlbersUsa().scale(900).translate([400,300]);
+    var path = d3.geoPath().projection(projection);
+
+    // add tooltip
+    var tip = d3.tip()
+        .attr('class', 'd3-tip')
+
+    svg.call(tip);
+
+    // drawing
+    svg.append("g")
+        .attr("class", "states")
+        .selectAll("path")
+        .data(topojson.feature(data[0], data[0].objects.states).features)
+        .enter()
+        .append("path")
+        .attr("d", path)
+        .attr('fill', function(d) {
+            var stateName = d.properties.name;  // match by state name
+            for(var j=0; j<data[1].length; j++) {
+                if (stateName == data[1][j].state) {
+                    return colorScale(data[1][j].totallog);
+                };
+            };
+        })
+        .on('mouseover', function(d) {
+            var stateName = d.properties.name;  // match by state name
+            for(var j=0; j<data[1].length; j++) {
+                if (stateName == data[1][j].state) {
+                    var regionName = data[1][j].region;
+                    var frequency = data[1][j].total;
+                    break;
+                };
+            };
+            tip.html(`State: ${stateName}<br>Region: ${regionName}<br>Earthquakes: ${frequency}`);
+            tip.show();
+        })
+        .on('mouseout', function(d) {
+            tip.hide();
+        });
+
+
+    svg.append("path")
+        .attr("class", "state-borders")
+        .attr("d", path(topojson.mesh(data[0], data[0].objects.states, function(a, b) { return a !== b; })));
+
+
+
+});
+
+</script>
+</body>
+</html>
